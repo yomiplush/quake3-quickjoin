@@ -28,6 +28,8 @@ SITE="https://www.inari-lost-shrine.net/gameserver"
 
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+MIMEAPPS="$CONFIG_HOME/mimeapps.list"
 DESKTOP_ID="inari-quickjoin.desktop"
 DESKTOP="$APP_DIR/$DESKTOP_ID"
 HANDLER="$BIN_DIR/inari-quickjoin"
@@ -77,7 +79,7 @@ launch_steam_client() {
 
 install_handler() {
     self=$(readlink -f "$0") || die "cannot resolve own path"
-    mkdir -p "$APP_DIR" "$BIN_DIR"
+    mkdir -p "$APP_DIR" "$BIN_DIR" "$CONFIG_HOME"
     install -m 0755 "$self" "$HANDLER"
     cat > "$DESKTOP" <<EOF
 [Desktop Entry]
@@ -93,7 +95,11 @@ EOF
         update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
     fi
     if command -v xdg-mime >/dev/null 2>&1; then
-        xdg-mime default "$DESKTOP_ID" "x-scheme-handler/$SCHEME"
+        xdg-mime default "$DESKTOP_ID" "x-scheme-handler/$SCHEME" || true
+        if ! grep -qx "x-scheme-handler/$SCHEME=$DESKTOP_ID" "$MIMEAPPS" 2>/dev/null; then
+            rm -f "$HANDLER" "$DESKTOP"
+            die "could not register the handler in $MIMEAPPS (check xdg-utils and that \$HOME is writable); nothing was installed"
+        fi
     else
         die "xdg-mime not found; install xdg-utils and re-run"
     fi
